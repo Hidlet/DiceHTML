@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高质感实体跑团骰子 (终极修复版)</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #2b2b36 0%, #0d0d12 100%);
+            font-family: system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 15px 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90vw;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        button:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
+        button:active { transform: scale(0.95); }
+        
+        .action-btn { background: rgba(46, 204, 113, 0.4); border-color: #2ecc71; }
+        .action-btn:hover { background: rgba(46, 204, 113, 0.6); }
+        .danger-btn { background: rgba(231, 76, 60, 0.3); border-color: #c0392b; margin-left: 20px; }
+        .danger-btn:hover { background: rgba(231, 76, 60, 0.5); }
+
+        #canvas-container { width: 100%; height: 100%; display: block; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+    <div id="control-panel">
+        <button onclick="addDice(20)">+ D20</button>
+        <button onclick="addDice(12)">+ D12</button>
+        <button onclick="addDice(10)">+ D10</button>
+        <button onclick="addDice(8)">+ D8</button>
+        <button onclick="addDice(6)">+ D6</button>
+        <button onclick="addDice(4)">+ D4</button>
+        <button class="danger-btn" onclick="clearDesk()">收回骰子</button>
+        <button class="action-btn" onclick="rollAll()">全部掷出！</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // ==========================================
+        // 1. 场景配置
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 12); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.physicallyCorrectLights = true;
+        container.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const light1 = new THREE.PointLight(0xffffff, 50);
+        light1.position.set(5, 5, 5);
+        scene.add(light1);
+        const light2 = new THREE.PointLight(0xe0e0ff, 40);
+        light2.position.set(-5, -5, 8);
+        scene.add(light2);
+
+        const DICE_STYLES = {
+            20: { color: 0xe74c3c }, 12: { color: 0x9b59b6 }, 10: { color: 0x2980b9 }, 
+            8:  { color: 0x1abc9c }, 6:  { color: 0xf39c12 }, 4:  { color: 0x34495e }  
+        };
+        const DICE_RADIUS = 0.9;
+
+        // 生成带边框和阴影的高清数字贴纸
+        function createNumberTexture(text) {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 120px Arial';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.fillText(text, size / 2, size / 2);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#222222';
+            ctx.strokeText(text, size / 2, size / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            return texture;
+        }
+
+        // ==========================================
+        // 2. 核心算法修复：CCW 缠绕与防穿模法线外推
+        // ==========================================
+        function getFaces(sides, geometry, radius) {
+            const faces = [];
+            
+            if (sides === 10) {
+                // 手工提取 D10 物理面，确保法线完全向外
+                for (let i = 0; i < 5; i++) {
+                    const a1 = (i * 72) * Math.PI / 180;
+                    const a2 = ((i + 1) * 72) * Math.PI / 180;
+                    const aMid = (i * 72 + 36) * Math.PI / 180;
+                    const aMid2 = (i * 72 - 36) * Math.PI / 180;
+                    
+                    const top = new THREE.Vector3(0, radius, 0);
+                    const bottom = new THREE.Vector3(0, -radius, 0);
+                    const u1 = new THREE.Vector3(Math.cos(a1)*radius, 0.15*radius, Math.sin(a1)*radius);
+                    const u2 = new THREE.Vector3(Math.cos(a2)*radius, 0.15*radius, Math.sin(a2)*radius);
+                    const l1 = new THREE.Vector3(Math.cos(aMid)*radius, -0.15*radius, Math.sin(aMid)*radius);
+                    const l0 = new THREE.Vector3(Math.cos(aMid2)*radius, -0.15*radius, Math.sin(aMid2)*radius);
+                    
+                    // 上半部面
+                    const cTop = new THREE.Vector3().add(top).add(u1).add(l1).add(u2).divideScalar(4);
+                    const nTop = new THREE.Vector3().crossVectors(
+                        new THREE.Vector3().subVectors(l1, top),
+                        new THREE.Vector3().subVectors(u1, top)
+                    ).normalize();
+                    if (nTop.dot(cTop) < 0) nTop.negate();
+                    faces.push({ center: cTop, normal: nTop });
+                    
+                    // 下半部面
+                    const cBot = new THREE.Vector3().add(bottom).add(u1).add(l0).add(l1).divideScalar(4);
+                    const nBot = new THREE.Vector3().crossVectors(
+                        new THREE.Vector3().subVectors(u1, bottom),
+                        new THREE.Vector3().subVectors(l1, bottom)
+                    ).normalize();
+                    if (nBot.dot(cBot) < 0) nBot.negate();
+                    faces.push({ center: cBot, normal: nBot });
+                }
+                return faces;
+            } 
+            else {
+                // 柏拉图立体：原生三角法线解析
+                const positions = geometry.attributes.position.array;
+                const index = geometry.index ? geometry.index.array : null;
+                const triangleCount = index ? index.length / 3 : positions.length / 9;
+                
+                for (let i = 0; i < triangleCount; i++) {
+                    let iA = index ? index[i * 3] * 3 : i * 9;
+                    let iB = index ? index[i * 3 + 1] * 3 : i * 9 + 3;
+                    let iC = index ? index[i * 3 + 2] * 3 : i * 9 + 6;
+
+                    const vA = new THREE.Vector3(positions[iA], positions[iA+1], positions[iA+2]);
+                    const vB = new THREE.Vector3(positions[iB], positions[iB+1], positions[iB+2]);
+                    const vC = new THREE.Vector3(positions[iC], positions[iC+1], positions[iC+2]);
+
+                    const triangle = new THREE.Triangle(vA, vB, vC);
+                    const normal = new THREE.Vector3();
+                    triangle.getNormal(normal);
+                    const center = new THREE.Vector3();
+                    triangle.getMidpoint(center);
+
+                    let found = false;
+                    for (let face of faces) {
+                        if (face.normal.distanceTo(normal) < 0.1) {
+                            face.centers.push(center);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) faces.push({ normal: normal, centers: [center] });
+                }
+
+                return faces.map(face => {
+                    const finalCenter = new THREE.Vector3();
+                    face.centers.forEach(c => finalCenter.add(c));
+                    finalCenter.divideScalar(face.centers.length);
+                    return { normal: face.normal.clone().normalize(), center: finalCenter };
+                });
+            }
+        }
+
+        // 彻底修复：D10 CCW 逆时针顶点连接，防止内壁透视
+        function createD10Geometry(radius) {
+            const geom = new THREE.BufferGeometry();
+            const verts = [];
+            verts.push(0, radius, 0);       
+            verts.push(0, -radius, 0);      
+            for(let i=0; i<5; i++) {
+                const a = (i * 72) * Math.PI / 180;
+                verts.push(Math.cos(a)*radius, 0.15*radius, Math.sin(a)*radius);
+            }
+            for(let i=0; i<5; i++) {
+                const a = (i * 72 + 36) * Math.PI / 180;
+                verts.push(Math.cos(a)*radius, -0.15*radius, Math.sin(a)*radius);
+            }
+            // 完美逆时针(CCW)三角形索引，外壁正常渲染
+            const indices = [
+                0,7,2, 0,3,7, 0,8,3, 0,4,8, 0,9,4, 0,5,9, 0,10,5, 0,6,10, 0,11,6, 0,2,11,
+                1,2,7, 1,7,3, 1,3,8, 1,8,4, 1,4,9, 1,9,5, 1,5,10, 1,10,6, 1,6,11, 1,11,2
+            ];
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+            geom.setIndex(indices);
+            geom.computeVertexNormals();
+            return geom;
+        }
+
+        function getGeometry(sides) {
+            switch(sides) {
+                case 4: return new THREE.TetrahedronGeometry(DICE_RADIUS);
+                case 6: return new THREE.BoxGeometry(DICE_RADIUS*1.3, DICE_RADIUS*1.3, DICE_RADIUS*1.3);
+                case 8: return new THREE.OctahedronGeometry(DICE_RADIUS);
+                case 10: return createD10Geometry(DICE_RADIUS);
+                case 12: return new THREE.DodecahedronGeometry(DICE_RADIUS*0.85);
+                case 20: return new THREE.IcosahedronGeometry(DICE_RADIUS);
+            }
+        }
+
+        let activeDice = [];
+        let isRolling = false;
+
+        function addDice(sides) {
+            if (isRolling) return;
+
+            const group = new THREE.Group();
+            const geometry = getGeometry(sides);
+            
+            const material = new THREE.MeshPhysicalMaterial({ 
+                color: DICE_STYLES[sides].color,
+                metalness: 0.1,
+                roughness: 0.3,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                flatShading: true 
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            group.add(mesh);
+
+            const faces = getFaces(sides, geometry, DICE_RADIUS);
+            // 文本平面稍微缩一点，防止盖过棱角
+            const planeGeom = new THREE.PlaneGeometry(DICE_RADIUS * 0.65, DICE_RADIUS * 0.65);
+            
+            let numbers = Array.from({length: sides}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+            group.userData.facesInfo = [];
+
+            faces.forEach((face, i) => {
+                const num = numbers[i] || (i+1);
+                const textPlane = new THREE.Mesh(
+                    planeGeom, 
+                    new THREE.MeshBasicMaterial({ map: createNumberTexture(num.toString()), transparent: true })
+                );
+                
+                // 【核心防穿模修复】：将文字从面中心，沿着该面的法线向量往外推 4% 的距离！
+                textPlane.position.copy(face.center).add(face.normal.clone().multiplyScalar(0.04));
+
+                // 【核心正向修复】：将世界正上方(Y轴)投影到当前面上，作为该面文字的 UP 向量
+                let localUp = new THREE.Vector3(0, 1, 0).projectOnPlane(face.normal).normalize();
+                if(localUp.lengthSq() < 0.001) localUp.set(0, 0, -1).projectOnPlane(face.normal).normalize();
+                let localRight = new THREE.Vector3().crossVectors(localUp, face.normal).normalize();
+
+                // 使用基向量矩阵强行锁死文字的局部坐标系
+                const mat = new THREE.Matrix4().makeBasis(localRight, localUp, face.normal);
+                textPlane.quaternion.setFromRotationMatrix(mat);
+                group.add(textPlane);
+
+                group.userData.facesInfo.push({
+                    number: num,
+                    normal: face.normal.clone(),
+                    up: localUp,
+                    right: localRight
+                });
+            });
+
+            scene.add(group);
+            activeDice.push(group);
+
+            // 刚生成时立刻静止，并绝对端正地将某一面朝向摄像机
+            const initialFace = group.userData.facesInfo[Math.floor(Math.random() * faces.length)];
+            const basisMatrix = new THREE.Matrix4().makeBasis(initialFace.right, initialFace.up, initialFace.normal);
+            group.quaternion.setFromRotationMatrix(basisMatrix.invert());
+
+            arrangeDice();
+        }
+
+        function arrangeDice() {
+            const count = activeDice.length;
+            if (count === 0) return;
+            const cols = Math.ceil(Math.sqrt(count));
+            const spacing = 2.8;
+            const startX = -((cols - 1) * spacing) / 2;
+            const startY = ((Math.ceil(count / cols) - 1) * spacing) / 2;
+
+            activeDice.forEach((dice, index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                gsap.to(dice.position, { 
+                    x: startX + col * spacing, 
+                    y: startY - row * spacing, 
+                    duration: 0.4, ease: "power2.out" 
+                });
+            });
+        }
+
+        function clearDesk() {
+            if (isRolling) return;
+            activeDice.forEach(dice => scene.remove(dice));
+            activeDice = [];
+        }
+
+        function rollAll() {
+            if (isRolling || activeDice.length === 0) return;
+            isRolling = true;
+
+            let completed = 0;
+
+            activeDice.forEach(dice => {
+                const faces = dice.userData.facesInfo;
+                const winningFace = faces[Math.floor(Math.random() * faces.length)];
+                
+                // 构建目标矩阵：面法线指向屏幕(+Z)，面的UP向量指向天花板(+Y)
+                const basisMatrix = new THREE.Matrix4().makeBasis(winningFace.right, winningFace.up, winningFace.normal);
+                const targetQuat = new THREE.Quaternion().setFromRotationMatrix(basisMatrix.invert());
+
+                const startQuat = dice.quaternion.clone();
+                const spinAxis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+                // 狂转 12 到 20 圈
+                const totalSpinAngle = (12 + Math.random() * 8) * Math.PI * 2; 
+
+                const proxy = { t: 0 };
+                
+                // 起跳
+                gsap.to(dice.position, { z: 2, duration: 0.4, yoyo: true, repeat: 1, ease: "power1.out" });
+
+                // 旋转阻尼
+                gsap.to(proxy, {
+                    t: 1,
+                    duration: 2.0 + Math.random() * 1.5,
+                    ease: "power3.out", 
+                    onUpdate: () => {
+                        const slerpQuat = new THREE.Quaternion().copy(startQuat).slerp(targetQuat, proxy.t);
+                        const remainingSpin = (1 - proxy.t) * totalSpinAngle;
+                        const wildQuat = new THREE.Quaternion().setFromAxisAngle(spinAxis, remainingSpin);
+                        dice.quaternion.copy(slerpQuat).multiply(wildQuat);
+                    },
+                    onComplete: () => {
+                        completed++;
+                        if (completed === activeDice.length) {
+                            isRolling = false;
+                        }
+                    }
+                });
+            });
+        }
+
+        // 渲染循环 (移除所有自转，保证桌面静止物理感)
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            arrangeDice();
+        });
+        
+        // 自动添加初始展示
+        window.onload = () => {
+            addDice(20);
+            addDice(10);
+            addDice(6);
+        };
+    </script>
+</body>
+</html>
