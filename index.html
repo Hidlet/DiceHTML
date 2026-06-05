@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>塞尔达风格 跑团骰子</title>
+    <title>吉卜力风格 跑团骰子</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
-            /* 希卡之石底色：深灰蓝渐变 */
-            background: radial-gradient(circle at center, #262930 0%, #101114 100%);
+            /* 宫崎骏风格背景：柔和的初夏云端天空底色 */
+            background: radial-gradient(circle at center, #fdfbf7 0%, #c4d7e6 100%);
             font-family: 'Sarasa Gothic SC', '更纱黑体', 'Microsoft YaHei', system-ui, sans-serif;
             user-select: none;
             touch-action: none; 
@@ -20,22 +20,22 @@
         #canvas-container { width: 100%; height: 100%; display: block; }
 
         /* ==========================================
-           UI：旷野之息 / 希卡之石风格
+           UI：日系清新 / 磨砂玻璃风格
            ========================================== */
         #control-panel {
             position: absolute;
             bottom: max(20px, env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
-            /* 塞尔达 UI 经典的暗色半透明底 + 细金边 */
-            background: rgba(10, 12, 15, 0.6);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            /* 柔和的亮色半透明底 */
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             padding: 15px;
-            border-radius: 12px;
-            border: 1px solid rgba(230, 194, 41, 0.3);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
             z-index: 100;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(130, 145, 160, 0.2);
 
             width: 92vw;
             max-width: 400px;
@@ -46,42 +46,38 @@
         }
 
         button {
-            background: rgba(255, 255, 255, 0.05);
-            /* 塞尔达风格：细边框，字体带微光 */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #dcdde1;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(200, 210, 220, 0.8);
+            color: #5c6b73; /* 深茶灰字体 */
             padding: 12px 0; 
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             font-weight: bold;
             font-family: inherit;
             font-size: 15px;
             letter-spacing: 1px;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
             -webkit-tap-highlight-color: transparent; 
         }
 
         button:active { 
             transform: scale(0.95); 
-            background: rgba(0, 229, 255, 0.2); 
-            border-color: #00e5ff;
-            color: #00e5ff;
-            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            background: rgba(255, 255, 255, 0.9); 
         }
         
         .danger-btn { 
             grid-column: span 1; 
-            background: rgba(255, 87, 34, 0.1); 
-            border-color: rgba(255, 87, 34, 0.4); 
-            color: #ff8a65;
+            background: rgba(239, 138, 115, 0.15); 
+            border-color: rgba(239, 138, 115, 0.4); 
+            color: #d86850;
         }
         
         .action-btn { 
             grid-column: span 2; 
-            /* 希卡之石主青色 */
-            background: rgba(0, 229, 255, 0.15); 
-            border-color: rgba(0, 229, 255, 0.5); 
-            color: #00e5ff;
+            /* 幽灵公主的草绿色 */
+            background: rgba(132, 184, 118, 0.15); 
+            border-color: rgba(132, 184, 118, 0.4); 
+            color: #5b8c5a;
         }
 
         @media (min-width: 600px) {
@@ -95,17 +91,14 @@
             }
             button { width: auto; padding: 10px 18px; }
             button:hover { 
-                background: rgba(0, 229, 255, 0.1); 
-                border-color: #00e5ff;
-                color: #00e5ff;
+                background: rgba(255, 255, 255, 0.9); 
+                color: #2a3d45;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                 transform: translateY(-2px); 
             }
             .danger-btn { margin-left: 20px; }
-            .danger-btn:hover {
-                background: rgba(255, 87, 34, 0.2);
-                border-color: #ff5722;
-                color: #ff5722;
-            }
+            .danger-btn:hover { background: rgba(239, 138, 115, 0.25); }
+            .action-btn:hover { background: rgba(132, 184, 118, 0.25); }
         }
     </style>
     
@@ -122,15 +115,12 @@
         <button onclick="addDice(6)">+ D6</button>
         <button onclick="addDice(4)">+ D4</button>
         <button class="danger-btn" onclick="clearDesk()">收回</button>
-        <button class="action-btn" onclick="rollAll()">全部掷出</button>
+        <button class="action-btn" onclick="rollAll()">抛出骰子</button>
     </div>
 
     <div id="canvas-container"></div>
 
     <script>
-        // ==========================================
-        // 1. 场景配置
-        // ==========================================
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -141,34 +131,33 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        // 卡通渲染的光照需要：一个强平行光主导高光，一个环境光补暗部
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        // 光源也调成了暖色调（午后阳光）
+        const ambientLight = new THREE.AmbientLight(0xfffae6, 0.95);
         scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
         dirLight.position.set(5, 10, 8);
         scene.add(dirLight);
 
         // ==========================================
-        // 2. 塞尔达配色与卡通渲染 (Toon Shading) 核心
+        // 宫崎骏治愈系专属色卡
         // ==========================================
         const DICE_STYLES = {
-            20: { color: 0xe6c229 }, // 三角力量金
-            12: { color: 0x2980b9 }, // 大师之剑蓝
-            10: { color: 0x00e5ff }, // 希卡之石发光青
-            8:  { color: 0x2ecc71 }, // 克洛格森林绿
-            6:  { color: 0xff5722 }, // 古代核心橙
-            4:  { color: 0xf8f9f9 }  // 静谧公主白
+            20: { color: 0xd96b52 }, // 砖红色 (波妞/千寻建筑)
+            12: { color: 0x6e8ca0 }, // 灰蓝色 (龙猫/雨天)
+            10: { color: 0x5a9367 }, // 森林绿 (幽灵公主)
+            8:  { color: 0x8baad8 }, // 飞行石蓝 (天空之城)
+            6:  { color: 0xe5b85c }, // 阳光黄 (哈尔的移动城堡)
+            4:  { color: 0xe09c95 }  // 柔粉色 (苏菲的帽子)
         };
         const DICE_RADIUS = 0.9;
 
-        // 动态生成卡通渲染的颜色阶跃贴图 (生成硬朗的卡通边缘)
+        // 卡通渲染色阶映射 (阴影带有一点暖褐色，避免死黑)
         function createToonGradient() {
             const canvas = document.createElement('canvas');
-            canvas.width = 3;
-            canvas.height = 1;
+            canvas.width = 3; canvas.height = 1;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#666666'; ctx.fillRect(0, 0, 1, 1); // 阴影层
-            ctx.fillStyle = '#bbbbbb'; ctx.fillRect(1, 0, 1, 1); // 过渡层
+            ctx.fillStyle = '#8a7a6a'; ctx.fillRect(0, 0, 1, 1); // 暖棕阴影
+            ctx.fillStyle = '#c8bcaa'; ctx.fillRect(1, 0, 1, 1); // 过渡层
             ctx.fillStyle = '#ffffff'; ctx.fillRect(2, 0, 1, 1); // 高光层
             const texture = new THREE.CanvasTexture(canvas);
             texture.magFilter = THREE.NearestFilter;
@@ -177,33 +166,49 @@
         }
         const toonGradient = createToonGradient();
 
-        // 柔和的数字贴图
+        // 绘制数字与区分 6 和 9 的专属圆点
         function createNumberTexture(text) {
             const size = 256;
             const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
+            canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, size, size);
 
-            // 移除原本死硬的黑边，改为塞尔达风的深灰褐色柔和阴影
-            ctx.fillStyle = '#ffffff';
+            // 数字主体色：乳白色
+            ctx.fillStyle = '#fdfcf0';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = 'bold 125px Arial';
-            ctx.shadowColor = 'rgba(20, 20, 15, 0.6)';
+            
+            // 描边与阴影色：深茶棕色 (比纯黑更复古)
+            const strokeColor = '#4a3f35';
+            ctx.shadowColor = 'rgba(74, 63, 53, 0.4)';
             ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 4;
 
+            // 绘制主数字
             ctx.fillText(text, size / 2, size / 2 + 5);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = strokeColor;
+            ctx.strokeText(text, size / 2, size / 2 + 5);
+
+            // 【核心 UX】为 6 和 9 绘制底部区分点
+            if (text === '6' || text === '9') {
+                const dotY = size / 2 + 65; // 在数字底部的合适位置
+                ctx.beginPath();
+                ctx.arc(size / 2, dotY, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
             const texture = new THREE.CanvasTexture(canvas);
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
             return texture;
         }
 
         // ==========================================
-        // 3. 几何构建与面法线提取 (保持精确)
+        // 几何构建 (维持完美物理属性)
         // ==========================================
         function getFaces(sides, geometry, radius) {
             const faces = [];
@@ -306,7 +311,6 @@
             const group = new THREE.Group();
             const geometry = getGeometry(sides);
             
-            // 【核心】更换为 MeshToonMaterial，实现二次元/卡通渲染
             const material = new THREE.MeshToonMaterial({ 
                 color: DICE_STYLES[sides].color,
                 gradientMap: toonGradient
@@ -355,25 +359,18 @@
             arrangeDice();
         }
 
-        // ==========================================
-        // 4. 动态镜头推拉算法 (修复手机端溢出)
-        // ==========================================
         function arrangeDice() {
             const count = activeDice.length;
             if (count === 0) return;
             const cols = Math.ceil(Math.sqrt(count));
-            const spacing = 3.0; // 稍微拉大间距，更清爽
+            const spacing = 3.0; 
             const startX = -((cols - 1) * spacing) / 2;
             
             let isMobile = window.innerWidth < 600;
-            
-            // 【核心修复】：动态计算摄像机 Z 轴距离，骰子越多，镜头拉得越远
             let baseZ = isMobile ? 14 : 12; 
-            // 超过 2 列就开始退后，移动端退得更快
             let targetZ = baseZ + Math.max(0, cols - 2) * (isMobile ? 6 : 4); 
             gsap.to(camera.position, { z: targetZ, duration: 0.5, ease: "power2.out" });
 
-            // 移动端把骰子阵列整体往上挪，避开底部菜单栏
             let mobileOffsetY = isMobile ? (cols * 1.2) : 0; 
             const startY = ((Math.ceil(count / cols) - 1) * spacing) / 2 + mobileOffsetY;
 
