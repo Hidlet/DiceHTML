@@ -3,98 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>高质感实体跑团骰子 (移动端完美适配版)</title>
+    <title>塞尔达风格 跑团骰子</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
-            background: radial-gradient(circle at center, #2b2b36 0%, #0d0d12 100%);
-            font-family: system-ui, -apple-system, sans-serif;
+            /* 希卡之石底色：深灰蓝渐变 */
+            background: radial-gradient(circle at center, #262930 0%, #101114 100%);
+            font-family: 'Sarasa Gothic SC', '更纱黑体', 'Microsoft YaHei', system-ui, sans-serif;
             user-select: none;
-            /* 阻止移动端下拉刷新等默认行为 */
             touch-action: none; 
         }
 
         #canvas-container { width: 100%; height: 100%; display: block; }
 
         /* ==========================================
-           移动端优先 (Mobile First) 的底部网格 UI
+           UI：旷野之息 / 希卡之石风格
            ========================================== */
         #control-panel {
             position: absolute;
-            /* 固定在底部，并避开 iPhone 底部小白条 */
             bottom: max(20px, env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
+            /* 塞尔达 UI 经典的暗色半透明底 + 细金边 */
+            background: rgba(10, 12, 15, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             padding: 15px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            border: 1px solid rgba(230, 194, 41, 0.3);
             z-index: 100;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
 
-            /* 移动端专属 3x3 完美网格布局 */
             width: 92vw;
             max-width: 400px;
             box-sizing: border-box;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px;
         }
 
         button {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 12px 0; /* 垂直内边距，水平由 grid 撑满 */
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            /* 塞尔达风格：细边框，字体带微光 */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #dcdde1;
+            padding: 12px 0; 
+            border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
+            font-family: inherit;
             font-size: 15px;
+            letter-spacing: 1px;
             transition: all 0.2s;
-            width: 100%;
-            /* 移除移动端的点击高亮 */
             -webkit-tap-highlight-color: transparent; 
         }
 
-        button:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.25); }
+        button:active { 
+            transform: scale(0.95); 
+            background: rgba(0, 229, 255, 0.2); 
+            border-color: #00e5ff;
+            color: #00e5ff;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
         
         .danger-btn { 
-            grid-column: span 1; /* 收回按钮占 1 格 */
-            background: rgba(231, 76, 60, 0.3); 
-            border-color: #c0392b; 
+            grid-column: span 1; 
+            background: rgba(255, 87, 34, 0.1); 
+            border-color: rgba(255, 87, 34, 0.4); 
+            color: #ff8a65;
         }
         
         .action-btn { 
-            grid-column: span 2; /* 掷出按钮占 2 格 */
-            background: rgba(46, 204, 113, 0.4); 
-            border-color: #2ecc71; 
+            grid-column: span 2; 
+            /* 希卡之石主青色 */
+            background: rgba(0, 229, 255, 0.15); 
+            border-color: rgba(0, 229, 255, 0.5); 
+            color: #00e5ff;
         }
 
-        /* ==========================================
-           桌面端 (宽屏) 恢复顶部一字排开布局
-           ========================================== */
         @media (min-width: 600px) {
             #control-panel {
-                top: 20px;
+                top: 25px;
                 bottom: auto;
                 width: auto;
                 max-width: 90vw;
                 display: flex;
                 padding: 15px 25px;
             }
-            button {
-                width: auto;
-                padding: 10px 16px;
+            button { width: auto; padding: 10px 18px; }
+            button:hover { 
+                background: rgba(0, 229, 255, 0.1); 
+                border-color: #00e5ff;
+                color: #00e5ff;
+                transform: translateY(-2px); 
             }
-            button:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
             .danger-btn { margin-left: 20px; }
-            .action-btn:hover { background: rgba(46, 204, 113, 0.6); }
-            .danger-btn:hover { background: rgba(231, 76, 60, 0.5); }
+            .danger-btn:hover {
+                background: rgba(255, 87, 34, 0.2);
+                border-color: #ff5722;
+                color: #ff5722;
+            }
         }
     </style>
     
@@ -111,12 +122,15 @@
         <button onclick="addDice(6)">+ D6</button>
         <button onclick="addDice(4)">+ D4</button>
         <button class="danger-btn" onclick="clearDesk()">收回</button>
-        <button class="action-btn" onclick="rollAll()">全部掷出！</button>
+        <button class="action-btn" onclick="rollAll()">全部掷出</button>
     </div>
 
     <div id="canvas-container"></div>
 
     <script>
+        // ==========================================
+        // 1. 场景配置
+        // ==========================================
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -125,23 +139,45 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.physicallyCorrectLights = true;
         container.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        const light1 = new THREE.PointLight(0xffffff, 50);
-        light1.position.set(5, 5, 5);
-        scene.add(light1);
-        const light2 = new THREE.PointLight(0xe0e0ff, 40);
-        light2.position.set(-5, -5, 8);
-        scene.add(light2);
+        // 卡通渲染的光照需要：一个强平行光主导高光，一个环境光补暗部
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        dirLight.position.set(5, 10, 8);
+        scene.add(dirLight);
 
+        // ==========================================
+        // 2. 塞尔达配色与卡通渲染 (Toon Shading) 核心
+        // ==========================================
         const DICE_STYLES = {
-            20: { color: 0xe74c3c }, 12: { color: 0x9b59b6 }, 10: { color: 0x2980b9 }, 
-            8:  { color: 0x1abc9c }, 6:  { color: 0xf39c12 }, 4:  { color: 0x34495e }  
+            20: { color: 0xe6c229 }, // 三角力量金
+            12: { color: 0x2980b9 }, // 大师之剑蓝
+            10: { color: 0x00e5ff }, // 希卡之石发光青
+            8:  { color: 0x2ecc71 }, // 克洛格森林绿
+            6:  { color: 0xff5722 }, // 古代核心橙
+            4:  { color: 0xf8f9f9 }  // 静谧公主白
         };
         const DICE_RADIUS = 0.9;
 
+        // 动态生成卡通渲染的颜色阶跃贴图 (生成硬朗的卡通边缘)
+        function createToonGradient() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 3;
+            canvas.height = 1;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#666666'; ctx.fillRect(0, 0, 1, 1); // 阴影层
+            ctx.fillStyle = '#bbbbbb'; ctx.fillRect(1, 0, 1, 1); // 过渡层
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(2, 0, 1, 1); // 高光层
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+        const toonGradient = createToonGradient();
+
+        // 柔和的数字贴图
         function createNumberTexture(text) {
             const size = 256;
             const canvas = document.createElement('canvas');
@@ -150,25 +186,25 @@
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, size, size);
 
+            // 移除原本死硬的黑边，改为塞尔达风的深灰褐色柔和阴影
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = 'bold 120px Arial';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            ctx.font = 'bold 125px Arial';
+            ctx.shadowColor = 'rgba(20, 20, 15, 0.6)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetY = 4;
 
-            ctx.fillText(text, size / 2, size / 2);
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = '#222222';
-            ctx.strokeText(text, size / 2, size / 2);
-
+            ctx.fillText(text, size / 2, size / 2 + 5);
             const texture = new THREE.CanvasTexture(canvas);
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
             return texture;
         }
 
+        // ==========================================
+        // 3. 几何构建与面法线提取 (保持精确)
+        // ==========================================
         function getFaces(sides, geometry, radius) {
             const faces = [];
             if (sides === 10) {
@@ -177,7 +213,6 @@
                     const a2 = ((i + 1) * 72) * Math.PI / 180;
                     const aMid = (i * 72 + 36) * Math.PI / 180;
                     const aMid2 = (i * 72 - 36) * Math.PI / 180;
-                    
                     const top = new THREE.Vector3(0, radius, 0);
                     const bottom = new THREE.Vector3(0, -radius, 0);
                     const u1 = new THREE.Vector3(Math.cos(a1)*radius, 0.15*radius, Math.sin(a1)*radius);
@@ -186,18 +221,12 @@
                     const l0 = new THREE.Vector3(Math.cos(aMid2)*radius, -0.15*radius, Math.sin(aMid2)*radius);
                     
                     const cTop = new THREE.Vector3().add(top).add(u1).add(l1).add(u2).divideScalar(4);
-                    const nTop = new THREE.Vector3().crossVectors(
-                        new THREE.Vector3().subVectors(l1, top),
-                        new THREE.Vector3().subVectors(u1, top)
-                    ).normalize();
+                    const nTop = new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(l1, top), new THREE.Vector3().subVectors(u1, top)).normalize();
                     if (nTop.dot(cTop) < 0) nTop.negate();
                     faces.push({ center: cTop, normal: nTop });
                     
                     const cBot = new THREE.Vector3().add(bottom).add(u1).add(l0).add(l1).divideScalar(4);
-                    const nBot = new THREE.Vector3().crossVectors(
-                        new THREE.Vector3().subVectors(u1, bottom),
-                        new THREE.Vector3().subVectors(l1, bottom)
-                    ).normalize();
+                    const nBot = new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(u1, bottom), new THREE.Vector3().subVectors(l1, bottom)).normalize();
                     if (nBot.dot(cBot) < 0) nBot.negate();
                     faces.push({ center: cBot, normal: nBot });
                 }
@@ -206,33 +235,26 @@
                 const positions = geometry.attributes.position.array;
                 const index = geometry.index ? geometry.index.array : null;
                 const triangleCount = index ? index.length / 3 : positions.length / 9;
-                
                 for (let i = 0; i < triangleCount; i++) {
                     let iA = index ? index[i * 3] * 3 : i * 9;
                     let iB = index ? index[i * 3 + 1] * 3 : i * 9 + 3;
                     let iC = index ? index[i * 3 + 2] * 3 : i * 9 + 6;
-
                     const vA = new THREE.Vector3(positions[iA], positions[iA+1], positions[iA+2]);
                     const vB = new THREE.Vector3(positions[iB], positions[iB+1], positions[iB+2]);
                     const vC = new THREE.Vector3(positions[iC], positions[iC+1], positions[iC+2]);
-
                     const triangle = new THREE.Triangle(vA, vB, vC);
-                    const normal = new THREE.Vector3();
-                    triangle.getNormal(normal);
-                    const center = new THREE.Vector3();
-                    triangle.getMidpoint(center);
+                    const normal = new THREE.Vector3(); triangle.getNormal(normal);
+                    const center = new THREE.Vector3(); triangle.getMidpoint(center);
 
                     let found = false;
                     for (let face of faces) {
                         if (face.normal.distanceTo(normal) < 0.1) {
                             face.centers.push(center);
-                            found = true;
-                            break;
+                            found = true; break;
                         }
                     }
                     if (!found) faces.push({ normal: normal, centers: [center] });
                 }
-
                 return faces.map(face => {
                     const finalCenter = new THREE.Vector3();
                     face.centers.forEach(c => finalCenter.add(c));
@@ -245,8 +267,7 @@
         function createD10Geometry(radius) {
             const geom = new THREE.BufferGeometry();
             const verts = [];
-            verts.push(0, radius, 0);       
-            verts.push(0, -radius, 0);      
+            verts.push(0, radius, 0); verts.push(0, -radius, 0);      
             for(let i=0; i<5; i++) {
                 const a = (i * 72) * Math.PI / 180;
                 verts.push(Math.cos(a)*radius, 0.15*radius, Math.sin(a)*radius);
@@ -285,13 +306,10 @@
             const group = new THREE.Group();
             const geometry = getGeometry(sides);
             
-            const material = new THREE.MeshPhysicalMaterial({ 
+            // 【核心】更换为 MeshToonMaterial，实现二次元/卡通渲染
+            const material = new THREE.MeshToonMaterial({ 
                 color: DICE_STYLES[sides].color,
-                metalness: 0.1,
-                roughness: 0.3,
-                clearcoat: 1.0,
-                clearcoatRoughness: 0.1,
-                flatShading: true 
+                gradientMap: toonGradient
             });
             
             const mesh = new THREE.Mesh(geometry, material);
@@ -338,17 +356,25 @@
         }
 
         // ==========================================
-        // 核心布局修复：移动端动态向上偏移
+        // 4. 动态镜头推拉算法 (修复手机端溢出)
         // ==========================================
         function arrangeDice() {
             const count = activeDice.length;
             if (count === 0) return;
             const cols = Math.ceil(Math.sqrt(count));
-            const spacing = 2.8;
+            const spacing = 3.0; // 稍微拉大间距，更清爽
             const startX = -((cols - 1) * spacing) / 2;
             
-            // 如果屏幕宽度小于 600px (手机)，将骰子矩阵整体往上方移动 2.5 个单位
-            let mobileOffsetY = window.innerWidth < 600 ? 2.5 : 0;
+            let isMobile = window.innerWidth < 600;
+            
+            // 【核心修复】：动态计算摄像机 Z 轴距离，骰子越多，镜头拉得越远
+            let baseZ = isMobile ? 14 : 12; 
+            // 超过 2 列就开始退后，移动端退得更快
+            let targetZ = baseZ + Math.max(0, cols - 2) * (isMobile ? 6 : 4); 
+            gsap.to(camera.position, { z: targetZ, duration: 0.5, ease: "power2.out" });
+
+            // 移动端把骰子阵列整体往上挪，避开底部菜单栏
+            let mobileOffsetY = isMobile ? (cols * 1.2) : 0; 
             const startY = ((Math.ceil(count / cols) - 1) * spacing) / 2 + mobileOffsetY;
 
             activeDice.forEach((dice, index) => {
@@ -385,7 +411,6 @@
                 const totalSpinAngle = (12 + Math.random() * 8) * Math.PI * 2; 
                 const proxy = { t: 0 };
                 
-                // 起跳时保留当前的 X 和 Y 位置，只做 Z 轴运动
                 const startZ = dice.position.z;
                 gsap.to(dice.position, { z: startZ + 2, duration: 0.4, yoyo: true, repeat: 1, ease: "power1.out" });
 
